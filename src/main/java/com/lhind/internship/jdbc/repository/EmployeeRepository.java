@@ -16,6 +16,9 @@ public class EmployeeRepository implements Repository<Employee, Integer> {
 
     private static final String SELECT_ALL = "SELECT * FROM employees;";
     private static final String SELECT_BY_ID = "SELECT * FROM employees WHERE employeeNumber = ?;";
+    private static final String INSERT_EMPLOYEE = "INSERT INTO employees (employeeNumber, lastName, firstName, extension, email, officeCode, reportsTo, jobTitle) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+    private static final String UPDATE_EMPLOYEE = "UPDATE employees SET lastName = ?, firstName = ?, extension = ?, email = ?, officeCode = ?, reportsTo = ?, jobTitle = ? WHERE employeeNumber = ?;";
+    private static final String DELETE_EMPLOYEE = "DELETE FROM employees WHERE employeeNumber = ?;";
 
     private EmployeeMapper employeeMapper = EmployeeMapper.getInstance();
 
@@ -23,7 +26,7 @@ public class EmployeeRepository implements Repository<Employee, Integer> {
     public List<Employee> findAll() {
         final List<Employee> response = new ArrayList<>();
         try (final Connection connection = JdbcConnection.connect();
-             final PreparedStatement statement = connection.prepareStatement(EmployeeQuery.SELECT_ALL.getQuery())) {
+             final PreparedStatement statement = connection.prepareStatement(SELECT_ALL)) {
             final ResultSet result = statement.executeQuery();
             while (result.next()) {
                 response.add(employeeMapper.toEntity(result));
@@ -54,24 +57,60 @@ public class EmployeeRepository implements Repository<Employee, Integer> {
 
     @Override
     public boolean exists(final Integer integer) {
-        // TODO: Implement a method which checks if an employee with the given id exists in the employees table
+        try (final Connection connection = JdbcConnection.connect();
+             final PreparedStatement statement = connection.prepareStatement(SELECT_BY_ID)) {
+            statement.setInt(1, integer);
+            final ResultSet result = statement.executeQuery();
+            return result.next();
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
         return false;
     }
 
     @Override
     public Employee save(final Employee employee) {
-        /*
-         * TODO: Implement a method which adds an employee to the employees table
-         *  If the employee exists then the method should instead update the employee
-         *
-         */
+        try (final Connection connection = JdbcConnection.connect()) {
+            if (exists(employee.getEmployeeNumber())) {
+                try (final PreparedStatement statement = connection.prepareStatement(UPDATE_EMPLOYEE)) {
+                    statement.setString(1, employee.getLastName());
+                    statement.setString(2, employee.getFirstName());
+                    statement.setString(3, employee.getExtension());
+                    statement.setString(4, employee.getEmail());
+                    statement.setString(5, employee.getOfficeCode());
+                    statement.setObject(6, employee.getReportsTo());
+                    statement.setString(7, employee.getJobTitle());
+                    statement.setInt(8, employee.getEmployeeNumber());
+                    statement.executeUpdate();
+                }
+            } else {
+                try (final PreparedStatement statement = connection.prepareStatement(INSERT_EMPLOYEE)) {
+                    statement.setInt(1, employee.getEmployeeNumber());
+                    statement.setString(2, employee.getLastName());
+                    statement.setString(3, employee.getFirstName());
+                    statement.setString(4, employee.getExtension());
+                    statement.setString(5, employee.getEmail());
+                    statement.setString(6, employee.getOfficeCode());
+                    statement.setObject(7, employee.getReportsTo());
+                    statement.setString(8, employee.getJobTitle());
+                    statement.executeUpdate();
+                }
+            }
+            return employee;
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
         return null;
     }
 
     @Override
     public void delete(final Integer integer) {
-        /*
-         * TODO: Implement a method which deletes an employee given the id
-         */
+        try (final Connection connection = JdbcConnection.connect();
+             final PreparedStatement statement = connection.prepareStatement(DELETE_EMPLOYEE)) {
+            statement.setInt(1, integer);
+            statement.executeUpdate();
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
     }
 }
